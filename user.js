@@ -33,10 +33,15 @@ const app = express();
 app.use(express.json());
 
 const corsOptions = {
-  origin: "*", // Restrict this in production
+  origin: [
+    "https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app",
+    "https://web.telegram.org",
+  ], // Allowed origins
   methods: ["GET", "POST"],
   credentials: true,
 };
+
+app.use(cors(corsOptions));
 
 app.use(cors(corsOptions));
 
