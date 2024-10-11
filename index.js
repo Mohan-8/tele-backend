@@ -4,6 +4,7 @@ require("dotenv").config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+const cron = require("node-cron");
 
 // Initialize the Telegram bot with your Telegram API token
 const token = process.env.TOKEN;
@@ -22,8 +23,8 @@ const UserSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String },
   rewards: { type: Number, default: 0 },
-  hasClaimed: { type: Boolean, default: false }, // Track claim status
   lastClaimedAt: { type: Date }, // Timestamp of last claim
+  farmingPoints: { type: Number, default: 0 }, // Add farming points
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -77,11 +78,6 @@ bot.onText(/\/start/, async (msg) => {
   );
 });
 
-// Generate JWT token for authentication
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
-};
-
 // Fetch user data based on userId (endpoint for the frontend to retrieve user info)
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -93,11 +89,11 @@ app.get("/api/user/:userId", async (req, res) => {
     }
 
     const now = new Date();
-    const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours (8 * 60 * 60 * 1000) for production
+    const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours for production
     let timeRemaining = 0;
     let canClaim = false;
 
-    // If the user has never claimed, they can claim immediately
+    // Calculate if the user can claim based on their last claimed timestamp
     if (!user.lastClaimedAt) {
       canClaim = true;
       timeRemaining = claimInterval / 1000; // Convert milliseconds to seconds
@@ -116,8 +112,9 @@ app.get("/api/user/:userId", async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       rewards: user.rewards,
+      farmingPoints: user.farmingPoints,
       canClaim,
-      timeRemaining, // Send remaining time
+      timeRemaining,
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -128,25 +125,46 @@ app.get("/api/user/:userId", async (req, res) => {
 });
 
 // Claim rewards endpoint
-// Claim points endpoint
 app.post("/api/user/:userId/claim", async (req, res) => {
   const { userId } = req.params;
-  const { points } = req.body;
 
   try {
+    const user = await User.findOne({ telegramId: userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if the user can claim rewards
+    if (user.farmingPoints <= 0) {
+      return res.status(400).json({ error: "No farming points to claim." });
+    }
+
+    // Update user's rewards and reset farming points
     await User.updateOne(
       { telegramId: userId },
       {
-        $inc: { rewards: points },
-        $set: { hasClaimed: true, lastClaimedAt: new Date() }, // Store current timestamp
+        $inc: { rewards: user.farmingPoints },
+        $set: { farmingPoints: 0, lastClaimedAt: new Date() },
       }
     );
+
     res.status(200).json({ message: "Points claimed successfully." });
   } catch (error) {
     console.error("Error claiming points:", error);
     res
       .status(500)
       .json({ error: "Internal Server Error", details: error.message });
+  }
+});
+
+// Farming mechanism: Increment farming points periodically
+cron.schedule("*/1 * * * *", async () => {
+  try {
+    // Increment farming points for all users
+    await User.updateMany({}, { $inc: { farmingPoints: 0.14 } });
+    console.log("Farming points updated for all users.");
+  } catch (error) {
+    console.error("Error updating farming points:", error);
   }
 });
 
