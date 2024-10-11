@@ -24,6 +24,7 @@ const UserSchema = new mongoose.Schema({
   rewards: { type: Number, default: 0 },
   hasClaimed: { type: Boolean, default: false }, // Track claim status
   lastClaimedAt: { type: Date }, // Timestamp of last claim
+  profilePicture: { type: String }, // New field for profile picture URL
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -43,14 +44,19 @@ app.use(cors(corsOptions));
 // Handle the /start command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  const { id, first_name: firstName, last_name: lastName = "" } = msg.from;
+  const {
+    id,
+    first_name: firstName,
+    last_name: lastName = "",
+    photo_url: profilePicture,
+  } = msg.from;
 
   // Check if the user already exists in the database
   let user = await User.findOne({ telegramId: id });
 
   if (!user) {
     // If the user doesn't exist, create a new user in the database
-    user = new User({ telegramId: id, firstName, lastName });
+    user = new User({ telegramId: id, firstName, lastName, profilePicture }); // Save profile picture URL
     await user.save();
   }
 
@@ -118,6 +124,7 @@ app.get("/api/user/:userId", async (req, res) => {
       rewards: user.rewards,
       canClaim,
       timeRemaining, // Send remaining time
+      profilePicture: user.profilePicture, // Include profile picture URL
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -126,6 +133,7 @@ app.get("/api/user/:userId", async (req, res) => {
       .json({ error: "Internal Server Error", details: error.message });
   }
 });
+
 
 // Claim rewards endpoint
 // Claim points endpoint
