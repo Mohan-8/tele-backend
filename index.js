@@ -4,7 +4,6 @@ require("dotenv").config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const cron = require("node-cron");
 
 // Initialize the Telegram bot with your Telegram API token
 const token = process.env.TOKEN;
@@ -23,8 +22,9 @@ const UserSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String },
   rewards: { type: Number, default: 0 },
-  lastClaimedAt: { type: Date }, // Timestamp of last claim
-  farmingPoints: { type: Number, default: 0 }, // Add farming points
+  hasClaimed: { type: Boolean, default: false },
+  lastClaimedAt: { type: Date },
+  referredBy: { type: String },
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -42,16 +42,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Handle the /start command
-bot.onText(/\/start/, async (msg) => {
+bot.onText(/\/start (.+)?/, async (msg, match) => {
   const chatId = msg.chat.id;
+  const referrerId = match[1]; // Extract the referrer ID from the referral link (if exists)
   const { id, first_name: firstName, last_name: lastName = "" } = msg.from;
 
   // Check if the user already exists in the database
   let user = await User.findOne({ telegramId: id });
 
   if (!user) {
-    // If the user doesn't exist, create a new user in the database
+    // If the user doesn't exist, create a new user
     user = new User({ telegramId: id, firstName, lastName });
+
+    // If the referrerId exists, store it
+    if (referrerId) {
+      user.referredBy = referrerId; // Store the referrer in the user model
+    }
+
     await user.save();
   }
 
@@ -76,8 +83,37 @@ bot.onText(/\/start/, async (msg) => {
     `Welcome, ${user.firstName}! Click the button below to check your stats.`,
     inlineKeyboard
   );
+
+  // If the user was referred by someone, notify the referrer (optional)
+  if (referrerId) {
+    const referrer = await User.findOne({ telegramId: referrerId });
+    if (referrer) {
+      bot.sendMessage(
+        referrerId,
+        `You referred ${user.firstName} ${user.lastName} and earned a reward!`
+      );
+    }
+  }
 });
 
+// Generate JWT token for authentication
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
+};
+const authenticateJWT = (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
+  }
+};
 // Fetch user data based on userId (endpoint for the frontend to retrieve user info)
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -89,11 +125,11 @@ app.get("/api/user/:userId", async (req, res) => {
     }
 
     const now = new Date();
-    const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours for production
+    const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours (8 * 60 * 60 * 1000) for production
     let timeRemaining = 0;
     let canClaim = false;
 
-    // Calculate if the user can claim based on their last claimed timestamp
+    // If the user has never claimed, they can claim immediately
     if (!user.lastClaimedAt) {
       canClaim = true;
       timeRemaining = claimInterval / 1000; // Convert milliseconds to seconds
@@ -112,9 +148,8 @@ app.get("/api/user/:userId", async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       rewards: user.rewards,
-      farmingPoints: user.farmingPoints,
       canClaim,
-      timeRemaining,
+      timeRemaining, // Send remaining time
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -125,46 +160,25 @@ app.get("/api/user/:userId", async (req, res) => {
 });
 
 // Claim rewards endpoint
+// Claim points endpoint
 app.post("/api/user/:userId/claim", async (req, res) => {
   const { userId } = req.params;
+  const { points } = req.body;
 
   try {
-    const user = await User.findOne({ telegramId: userId });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Check if the user can claim rewards
-    if (user.farmingPoints <= 0) {
-      return res.status(400).json({ error: "No farming points to claim." });
-    }
-
-    // Update user's rewards and reset farming points
     await User.updateOne(
       { telegramId: userId },
       {
-        $inc: { rewards: user.farmingPoints },
-        $set: { farmingPoints: 0, lastClaimedAt: new Date() },
+        $inc: { rewards: points },
+        $set: { hasClaimed: true, lastClaimedAt: new Date() }, // Store current timestamp
       }
     );
-
     res.status(200).json({ message: "Points claimed successfully." });
   } catch (error) {
     console.error("Error claiming points:", error);
     res
       .status(500)
       .json({ error: "Internal Server Error", details: error.message });
-  }
-});
-
-// Farming mechanism: Increment farming points periodically
-cron.schedule("*/1 * * * *", async () => {
-  try {
-    // Increment farming points for all users
-    await User.updateMany({}, { $inc: { farmingPoints: 0.14 } });
-    console.log("Farming points updated for all users.");
-  } catch (error) {
-    console.error("Error updating farming points:", error);
   }
 });
 
