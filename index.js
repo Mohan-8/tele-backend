@@ -33,10 +33,7 @@ const app = express();
 app.use(express.json());
 
 const corsOptions = {
-  origin: [
-    "https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app",
-    "https://web.telegram.org",
-  ], // Allowed origins
+  origin: "*", // Restrict this in production
   methods: ["GET", "POST"],
   credentials: true,
 };
@@ -131,6 +128,7 @@ app.get("/api/user/:userId", async (req, res) => {
 });
 
 // Claim rewards endpoint
+// Claim points endpoint
 app.post("/api/user/:userId/claim", async (req, res) => {
   const { userId } = req.params;
   const { points } = req.body;
@@ -152,5 +150,8 @@ app.post("/api/user/:userId/claim", async (req, res) => {
   }
 });
 
-// Export the Express app for Vercel
-module.exports = app;
+// Start the Express server
+const PORT = process.env.PORT;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
