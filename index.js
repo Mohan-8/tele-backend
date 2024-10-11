@@ -25,6 +25,8 @@ const UserSchema = new mongoose.Schema({
   hasClaimed: { type: Boolean, default: false },
   lastClaimedAt: { type: Date },
   referredBy: { type: String }, // Track who referred the user
+  loginStreak: { type: Number, default: 0 }, // New field for login streak
+  lastLoginDate: { type: Date }, // New field for last login date
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -55,6 +57,9 @@ bot.onText(/\/start/, async (msg) => {
     await user.save();
   }
 
+  // Update login information
+  await updateLoginInfo(user);
+
   // Modify the URL to include the user ID as a query parameter
   const inlineKeyboard = {
     reply_markup: {
@@ -77,6 +82,38 @@ bot.onText(/\/start/, async (msg) => {
     inlineKeyboard
   );
 });
+
+// Update login information
+const updateLoginInfo = async (user) => {
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+
+  // Check if the last login date is set
+  if (!user.lastLoginDate) {
+    user.lastLoginDate = now; // Set the first login date
+    user.loginStreak = 1; // Start a new streak
+  } else {
+    const lastLoginDate = user.lastLoginDate.toISOString().split("T")[0];
+
+    // If the last login was today, do nothing
+    if (lastLoginDate === today) {
+      return;
+    }
+
+    const daysDiff = (now - user.lastLoginDate) / (1000 * 60 * 60 * 24);
+    if (daysDiff === 1) {
+      user.loginStreak += 1; // Increment streak by 1 for consecutive login
+    } else if (daysDiff > 1) {
+      user.loginStreak = 1; // Reset the streak if the user missed a day
+    }
+
+    user.lastLoginDate = now; // Update last login date
+  }
+
+  await user.save();
+};
+
+// Handle the /start command with referral
 bot.onText(/\/start (.+)?/, async (msg, match) => {
   const chatId = msg.chat.id;
   const referrerId = match[1]; // Extract the referrer ID from the referral link (if exists)
@@ -96,6 +133,9 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
 
     await user.save();
   }
+
+  // Update login information
+  await updateLoginInfo(user);
 
   // Modify the URL to include the user ID as a query parameter
   const inlineKeyboard = {
@@ -130,10 +170,12 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
     }
   }
 });
+
 // Generate JWT token for authentication
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
 };
+
 const authenticateJWT = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (token) {
@@ -148,6 +190,7 @@ const authenticateJWT = (req, res, next) => {
     res.sendStatus(401);
   }
 };
+
 // Fetch user data based on userId (endpoint for the frontend to retrieve user info)
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -182,6 +225,8 @@ app.get("/api/user/:userId", async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       rewards: user.rewards,
+      loginStreak: user.loginStreak, // Send login streak
+      lastLoginDate: user.lastLoginDate, // Send last login date
       canClaim,
       timeRemaining, // Send remaining time
     });
@@ -194,7 +239,6 @@ app.get("/api/user/:userId", async (req, res) => {
 });
 
 // Claim rewards endpoint
-// Claim points endpoint
 app.post("/api/user/:userId/claim", async (req, res) => {
   const { userId } = req.params;
   const { points } = req.body;
@@ -215,6 +259,8 @@ app.post("/api/user/:userId/claim", async (req, res) => {
       .json({ error: "Internal Server Error", details: error.message });
   }
 });
+
+// Handle referral command
 bot.onText(/\/referral/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -224,6 +270,8 @@ bot.onText(/\/referral/, async (msg) => {
 
   bot.sendMessage(chatId, `Share your referral link: ${referralLink}`);
 });
+
+// Get referral count
 app.get("/api/referrals/:userId", async (req, res) => {
   const userId = req.params.userId;
 
