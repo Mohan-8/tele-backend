@@ -16,18 +16,21 @@ mongoose
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Define the User model
-const UserSchema = new mongoose.Schema({
-  telegramId: { type: String, required: true, unique: true },
+const userSchema = new mongoose.Schema({
+  // Existing fields
   firstName: { type: String, required: true },
-  lastName: { type: String },
+  userId: { type: String, required: true, unique: true },
   rewards: { type: Number, default: 0 },
-  hasClaimed: { type: Boolean, default: false },
-  lastClaimedAt: { type: Date },
-  referredBy: { type: String }, // Track who referred the user
+  canClaim: { type: Boolean, default: false },
+  timeRemaining: { type: Number, default: 0 },
+
+  // New fields for the staking mechanism
+  lastLogin: { type: Date, default: Date.now }, // Stores the timestamp of the last login
+  loginStreak: { type: Number, default: 0 }, // Tracks consecutive days of login
+  farmingPointsMultiplier: { type: Number, default: 0.14 }, // Multiplier for farming points, starting at 0.15
 });
 
-const User = mongoose.model("User", UserSchema);
+const User = mongoose.model("User", userSchema);
 
 // Create an Express app
 const app = express();
@@ -231,6 +234,41 @@ app.get("/api/referrals/:userId", async (req, res) => {
   const referredCount = await User.countDocuments({ referredBy: userId });
 
   res.json({ referredCount });
+});
+const updateLoginStreak = async (userId) => {
+  const user = await User.findById(userId);
+
+  const currentTime = new Date();
+  const lastLoginTime = new Date(user.lastLogin);
+  const hoursSinceLastLogin = (currentTime - lastLoginTime) / (1000 * 60 * 60);
+
+  if (hoursSinceLastLogin < 24) {
+    user.loginStreak += 1;
+    if (user.loginStreak === 7) {
+      user.farmingPointsMultiplier += 0.01; // Increase the farming points multiplier after 7 days
+      user.loginStreak = 0; // Reset the streak
+    }
+  } else {
+    user.loginStreak = 1; // Reset streak to 1 if more than 24 hours have passed
+    user.farmingPointsMultiplier = 0.15; // Reset multiplier
+  }
+
+  user.lastLogin = currentTime;
+  await user.save();
+};
+
+app.post("/api/user/:userId/login", async (req, res) => {
+  try {
+    await updateLoginStreak(req.params.userId);
+    const user = await User.findById(req.params.userId);
+    res.status(200).json({
+      success: true,
+      loginStreak: user.loginStreak,
+      farmingPointsMultiplier: user.farmingPointsMultiplier,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update streak" });
+  }
 });
 
 // Start the Express server
