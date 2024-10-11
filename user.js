@@ -43,8 +43,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use(cors(corsOptions));
-
 // Handle the /start command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
