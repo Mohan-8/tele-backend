@@ -24,7 +24,7 @@ const UserSchema = new mongoose.Schema({
   rewards: { type: Number, default: 0 },
   hasClaimed: { type: Boolean, default: false },
   lastClaimedAt: { type: Date },
-  referredBy: { type: String },
+  referredBy: { type: String }, // Track who referred the user
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -62,7 +62,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
     await user.save();
   }
 
-  // Modify the URL to include the user ID as a query parameter
+  // Send a launch button
   const inlineKeyboard = {
     reply_markup: {
       inline_keyboard: [
@@ -70,7 +70,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+              url: `https://yourapp.url/?userId=${user.telegramId}`,
             },
           },
         ],
@@ -84,13 +84,19 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
     inlineKeyboard
   );
 
-  // If the user was referred by someone, notify the referrer (optional)
-  if (referrerId) {
+  // If the user was referred by someone, notify and reward the referrer
+  if (referrerId && id !== referrerId) {
+    // Make sure the user isn't referring themselves
     const referrer = await User.findOne({ telegramId: referrerId });
     if (referrer) {
+      // Increment the referrer's rewards
+      referrer.rewards += 10; // Assign any reward logic you want
+      await referrer.save();
+
+      // Notify the referrer
       bot.sendMessage(
         referrerId,
-        `You referred ${user.firstName} ${user.lastName} and earned a reward!`
+        `You referred ${user.firstName} and earned a reward!`
       );
     }
   }
@@ -180,6 +186,23 @@ app.post("/api/user/:userId/claim", async (req, res) => {
       .status(500)
       .json({ error: "Internal Server Error", details: error.message });
   }
+});
+bot.onText(/\/referral/, async (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  // Generate a referral link with the userId
+  const referralLink = `http://t.me/minx_a_botin?start=${userId}`;
+
+  bot.sendMessage(chatId, `Share your referral link: ${referralLink}`);
+});
+app.get("/api/referrals/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  // Find the user in the database and count how many referrals they have
+  const referredCount = await User.countDocuments({ referredBy: userId });
+
+  res.json({ referredCount });
 });
 
 // Start the Express server
