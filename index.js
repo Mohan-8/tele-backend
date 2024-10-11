@@ -42,6 +42,41 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Handle the /start command
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+  const { id, first_name: firstName, last_name: lastName = "" } = msg.from;
+
+  // Check if the user already exists in the database
+  let user = await User.findOne({ telegramId: id });
+
+  if (!user) {
+    // If the user doesn't exist, create a new user in the database
+    user = new User({ telegramId: id, firstName, lastName });
+    await user.save();
+  }
+
+  // Modify the URL to include the user ID as a query parameter
+  const inlineKeyboard = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "Launch",
+            web_app: {
+              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+            },
+          },
+        ],
+      ],
+    },
+  };
+
+  bot.sendMessage(
+    chatId,
+    `Welcome, ${user.firstName}! Click the button below to check your stats.`,
+    inlineKeyboard
+  );
+});
 bot.onText(/\/start (.+)?/, async (msg, match) => {
   const chatId = msg.chat.id;
   const referrerId = match[1]; // Extract the referrer ID from the referral link (if exists)
@@ -62,7 +97,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
     await user.save();
   }
 
-  // Send a launch button
+  // Modify the URL to include the user ID as a query parameter
   const inlineKeyboard = {
     reply_markup: {
       inline_keyboard: [
@@ -84,24 +119,17 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
     inlineKeyboard
   );
 
-  // If the user was referred by someone, notify and reward the referrer
-  if (referrerId && id !== referrerId) {
-    // Make sure the user isn't referring themselves
+  // If the user was referred by someone, notify the referrer (optional)
+  if (referrerId) {
     const referrer = await User.findOne({ telegramId: referrerId });
     if (referrer) {
-      // Increment the referrer's rewards
-      referrer.rewards += 10; // Assign any reward logic you want
-      await referrer.save();
-
-      // Notify the referrer
       bot.sendMessage(
         referrerId,
-        `You referred ${user.firstName} and earned a reward!`
+        `You referred ${user.firstName} ${user.lastName} and earned a reward!`
       );
     }
   }
 });
-
 // Generate JWT token for authentication
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
