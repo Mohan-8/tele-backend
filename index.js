@@ -70,7 +70,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://yourapp.url/?userId=${user.telegramId}`,
+              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
             },
           },
         ],
