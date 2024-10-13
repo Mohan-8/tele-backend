@@ -233,57 +233,80 @@ app.get("/api/referrals/:userId", async (req, res) => {
 
   res.json({ referredCount });
 });
+// Other parts of your code remain unchanged
+
+// Handle user login (you can call this function when a user logs in)
 const handleLogin = async (userId) => {
   const user = await User.findOne({ telegramId: userId });
   if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    return { error: "User not found" };
   }
-
   const now = new Date();
   const lastLogin = user.lastLoginAt;
-  const ONE_DAY = 24 * 60 * 60 * 1000; // Milliseconds in a day
+  const ONE_DAY = 24 * 60 * 60 * 1000;
 
+  // Check the time since the last login
   if (lastLogin) {
     const timeSinceLastLogin = now - lastLogin;
+    // Reset streak if the user missed a day
     if (timeSinceLastLogin > ONE_DAY) {
-      // Missed a day, reset the streak
-      user.streakCount = 1;
+      user.streakCount = 1; // Reset streak to 1
     } else {
-      // Consecutive login, increment streak
-      user.streakCount += 1;
+      user.streakCount += 1; // Increment streak
     }
   } else {
-    // First time login
-    user.streakCount = 1;
+    user.streakCount = 1; // First login
   }
 
-  // Reward the user after 7 consecutive logins
+  // Update rewards based on the streak
   if (user.streakCount === 7) {
-    user.rewards += 0.01; // Add rewards, can be adjusted
-    user.streakCount = 0; // Reset streak after reward
+    user.rewards += 0.1; // Reward for completing the first streak
+    user.streakCount = 0; // Reset streak after claiming reward
+  } else if (user.streakCount > 7 && user.streakCount % 7 === 0) {
+    user.rewards += 0.01; // Reward for subsequent streaks
   }
 
-  user.lastLoginAt = now; // Update last login
+  user.lastLoginAt = now; // Update the last login time
   await user.save();
-  return user;
+  return user; // Return the updated user object
 };
-app.get("/api/user/:userId/streak", async (req, res) => {
+
+// Endpoint to handle user login
+app.post("/api/user/:userId/login", async (req, res) => {
   const { userId } = req.params;
-
   try {
-    const user = await User.findOne({ telegramId: userId });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    const updatedUser = await handleLogin(userId);
+    if (updatedUser.error) {
+      return res.status(404).json({ error: updatedUser.error });
     }
-
     res.json({
-      streakCount: user.streakCount,
-      rewards: user.rewards,
+      streakCount: updatedUser.streakCount,
+      rewards: updatedUser.rewards,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error fetching streak data" });
+    console.error("Error handling login:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// Updated endpoint for fetching streak data
+app.get("/api/user/:userId/streak", async (req, res) => {
+  try {
+    const user = await User.findOne({ telegramId: req.params.userId });
+    if (user) {
+      return res.json({
+        streakCount: user.streakCount, // Updated to use the correct streak field
+        rewards: user.rewards,
+        canClaim: !user.hasClaimed, // User can claim if they haven't already
+      });
+    }
+    res.status(404).json({ error: "User not found" });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Other parts of your code remain unchanged
 
 // Start the Express server
 const PORT = process.env.PORT;
