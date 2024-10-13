@@ -163,7 +163,7 @@ app.get("/api/user/:userId", async (req, res) => {
     const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours (8 * 60 * 60 * 1000) for production
     let timeRemaining = 0;
     let canClaim = false;
-
+    let streakCount = user.streakCount;
     // If the user has never claimed, they can claim immediately
     if (!user.lastClaimedAt) {
       canClaim = true;
@@ -217,15 +217,15 @@ app.post("/api/user/:userId/claim", async (req, res) => {
       .json({ error: "Internal Server Error", details: error.message });
   }
 });
-bot.onText(/\/referral/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
+// bot.onText(/\/referral/, async (msg) => {
+//   const chatId = msg.chat.id;
+//   const userId = msg.from.id;
 
-  // Generate a referral link with the userId
-  const referralLink = `http://t.me/minx_a_botin?start=${userId}`;
+//   // Generate a referral link with the userId
+//   const referralLink = `http://t.me/minx_a_botin?start=${userId}`;
 
-  bot.sendMessage(chatId, `Share your referral link: ${referralLink}`);
-});
+//   bot.sendMessage(chatId, `Share your referral link: ${referralLink}`);
+// });
 app.get("/api/referrals/:userId", async (req, res) => {
   const userId = req.params.userId;
 
