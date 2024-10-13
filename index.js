@@ -24,7 +24,8 @@ const UserSchema = new mongoose.Schema({
   rewards: { type: Number, default: 0 },
   hasClaimed: { type: Boolean, default: false },
   lastClaimedAt: { type: Date },
-  referredBy: { type: String }, // Track who referred the user
+  streakCount: { type: Number, default: 0 }, // Track the current streak
+  lastLoginAt: { type: Date }, // Track the last login date
 });
 
 const User = mongoose.model("User", UserSchema);
@@ -231,6 +232,57 @@ app.get("/api/referrals/:userId", async (req, res) => {
   const referredCount = await User.countDocuments({ referredBy: userId });
 
   res.json({ referredCount });
+});
+const handleLogin = async (userId) => {
+  const user = await User.findOne({ telegramId: userId });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const now = new Date();
+  const lastLogin = user.lastLoginAt;
+  const ONE_DAY = 24 * 60 * 60 * 1000; // Milliseconds in a day
+
+  if (lastLogin) {
+    const timeSinceLastLogin = now - lastLogin;
+    if (timeSinceLastLogin > ONE_DAY) {
+      // Missed a day, reset the streak
+      user.streakCount = 1;
+    } else {
+      // Consecutive login, increment streak
+      user.streakCount += 1;
+    }
+  } else {
+    // First time login
+    user.streakCount = 1;
+  }
+
+  // Reward the user after 7 consecutive logins
+  if (user.streakCount === 7) {
+    user.rewards += 0.01; // Add rewards, can be adjusted
+    user.streakCount = 0; // Reset streak after reward
+  }
+
+  user.lastLoginAt = now; // Update last login
+  await user.save();
+  return user;
+};
+app.get("/api/user/:userId/streak", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findOne({ telegramId: userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      streakCount: user.streakCount,
+      rewards: user.rewards,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching streak data" });
+  }
 });
 
 // Start the Express server
