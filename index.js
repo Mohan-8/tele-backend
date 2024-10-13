@@ -184,7 +184,8 @@ app.get("/api/user/:userId", async (req, res) => {
       lastName: user.lastName,
       rewards: user.rewards,
       canClaim,
-      timeRemaining, // Send remaining time
+      timeRemaining,
+      streakCount, // Send remaining time
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
