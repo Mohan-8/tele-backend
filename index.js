@@ -164,6 +164,7 @@ app.get("/api/user/:userId", async (req, res) => {
     let timeRemaining = 0;
     let canClaim = false;
     let streakCount = user.streakCount;
+    let lastlogin = user.lastLoginAt;
     // If the user has never claimed, they can claim immediately
     if (!user.lastClaimedAt) {
       canClaim = true;
@@ -185,7 +186,8 @@ app.get("/api/user/:userId", async (req, res) => {
       rewards: user.rewards,
       canClaim,
       timeRemaining,
-      streakCount, // Send remaining time
+      streakCount,
+      lastlogin, // Send remaining time
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -261,10 +263,10 @@ const handleLogin = async (userId) => {
 
   // Update rewards based on the streak
   if (user.streakCount === 7) {
-    user.rewards += 0.1; // Reward for completing the first streak
+    // user.rewards += 0.1; // Reward for completing the first streak
     user.streakCount = 0; // Reset streak after claiming reward
   } else if (user.streakCount > 7 && user.streakCount % 7 === 0) {
-    user.rewards += 0.01; // Reward for subsequent streaks
+    // user.rewards += 0.01; // Reward for subsequent streaks
   }
 
   user.lastLoginAt = now; // Update the last login time
