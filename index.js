@@ -9,7 +9,7 @@ const jwt = require("jsonwebtoken");
 const token = process.env.TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 console.log("Telegram Bot is running");
-const WEB_URL = `${process.env.WEB_URL}/?userId=${user.telegramId}`;
+
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
@@ -64,7 +64,7 @@ bot.onText(/\/start/, async (msg) => {
           {
             text: "Launch",
             web_app: {
-              url: `${WEB_URL}`, // Ensure no newline or extra spaces
+              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
             },
           },
         ],
@@ -106,7 +106,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `${WEB_URL}`, // Ensure no newline or extra spaces
+              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
             },
           },
         ],
