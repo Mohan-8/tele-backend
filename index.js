@@ -247,35 +247,31 @@ const handleLogin = async (userId) => {
 
   const now = new Date();
   const lastLogin = user.lastLoginAt;
-  const ONE_MINUTE = 60 * 1000; // Set constant for 1 minute
+  const ONE_DAY = 24 * 60 * 60 * 1000;
 
   // Check the time since the last login
   if (lastLogin) {
     const timeSinceLastLogin = now - lastLogin;
 
-    // Reset streak if the user missed a minute
-    if (timeSinceLastLogin > ONE_MINUTE) {
-      user.streakCount = 1; // Reset streak to 1 if more than 1 minute has passed
-      console.log("Streak reset to 1");
+    // Reset streak if the user missed a day
+    if (timeSinceLastLogin > ONE_DAY) {
+      user.streakCount = 1; // Reset streak to 1
     } else {
-      user.streakCount += 1; // Increment streak if login is within 1 minute
-      console.log("Streak incremented to:", user.streakCount);
+      user.streakCount += 1; // Increment streak
     }
   } else {
     user.streakCount = 1; // First login
-    console.log("First login, setting streak to 1");
   }
 
   // Calculate points earned based on the streak count
-  const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0; // No points for streaks beyond 7 minutes
+  const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0; // No points for streaks beyond 7 days
 
   // Update user rewards
   user.rewards += pointsEarned;
 
-  // Reset streak after reaching 7 increments (7 minutes)
+  // Reset streak after reaching 7 days
   if (user.streakCount > 7) {
-    user.streakCount = 0; // Reset streak after reaching 7 increments
-    console.log("Streak reset to 0 after reaching 7 increments");
+    user.streakCount = 0; // Reset streak after 7 days
   }
 
   user.lastLoginAt = now;
@@ -287,7 +283,6 @@ const handleLogin = async (userId) => {
     pointsEarned, // Return points earned as well for frontend use
   };
 };
-
 
 // Endpoint to handle user login
 app.post("/api/user/:userId/login", async (req, res) => {
