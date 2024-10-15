@@ -248,28 +248,19 @@ const handleLogin = async (userId) => {
   const now = new Date();
   const lastLogin = user.lastLoginAt;
   const ONE_DAY = 24 * 60 * 60 * 1000;
-
-  // Check the time since the last login
   if (lastLogin) {
     const timeSinceLastLogin = now - lastLogin;
-
-    // Reset streak if the user missed a day
     if (timeSinceLastLogin > ONE_DAY) {
-      user.streakCount = 1; // Reset streak to 1
+      user.streakCount = 1;
     } else {
-      user.streakCount += 1; // Increment streak
+      user.streakCount += 1;
     }
   } else {
-    user.streakCount = 1; // First login
+    user.streakCount = 1;
   }
 
-  // Calculate points earned based on the streak count
   const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0; // No points for streaks beyond 7 days
-
-  // Update user rewards
   user.rewards += pointsEarned;
-
-  // Reset streak after reaching 7 days
   if (user.streakCount > 7) {
     user.streakCount = 0; // Reset streak after 7 days
   }
