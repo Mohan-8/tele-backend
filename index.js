@@ -64,7 +64,7 @@ bot.onText(/\/start/, async (msg) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+              url: process.env.WEB_URL,
             },
           },
         ],
@@ -106,7 +106,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+              url: process.env.WEB_URL,
             },
           },
         ],
@@ -244,7 +244,6 @@ const handleLogin = async (userId) => {
   if (!user) {
     return { error: "User not found" };
   }
-
   const now = new Date();
   const lastLogin = user.lastLoginAt;
   const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -258,11 +257,10 @@ const handleLogin = async (userId) => {
   } else {
     user.streakCount = 1;
   }
-
-  const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0; // No points for streaks beyond 7 days
+  const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0;
   user.rewards += pointsEarned;
   if (user.streakCount > 7) {
-    user.streakCount = 0; // Reset streak after 7 days
+    user.streakCount = 0;
   }
 
   user.lastLoginAt = now;
