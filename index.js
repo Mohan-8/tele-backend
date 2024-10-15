@@ -64,7 +64,7 @@ bot.onText(/\/start/, async (msg) => {
           {
             text: "Launch",
             web_app: {
-              url: `${process.env.WEB_URL}/?userId=${user.telegramId}`,
+              url: `${process.env.WEB_URL}/?userId=${user.telegramId}`.trim(), // Ensure no newline or extra spaces
             },
           },
         ],
@@ -106,7 +106,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `${process.env.WEB_URL}/?userId=${user.telegramId}`,
+              url: `${process.env.WEB_URL}/?userId=${user.telegramId}`.trim(), // Ensure no newline or extra spaces
             },
           },
         ],
