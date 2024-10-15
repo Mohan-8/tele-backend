@@ -64,7 +64,7 @@ bot.onText(/\/start/, async (msg) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+              url: `https://splendorous-smakager-e1bfb9.netlify.app/?userId=${user.telegramId}`,
             },
           },
         ],
@@ -106,7 +106,7 @@ bot.onText(/\/start (.+)?/, async (msg, match) => {
           {
             text: "Launch",
             web_app: {
-              url: `https://8ee1-2405-201-e060-50-60ca-b7a9-fc4c-c37c.ngrok-free.app/?userId=${user.telegramId}`,
+              url: `https://splendorous-smakager-e1bfb9.netlify.app/?userId=${user.telegramId}`,
             },
           },
         ],
