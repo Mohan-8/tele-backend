@@ -247,7 +247,7 @@ const handleLogin = async (userId) => {
 
   const now = new Date();
   const lastLogin = user.lastLoginAt;
-  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const ONE_DAY = 60 * 1000;
 
   // Check the time since the last login
   if (lastLogin) {
