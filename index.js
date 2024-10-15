@@ -244,6 +244,7 @@ const handleLogin = async (userId) => {
   if (!user) {
     return { error: "User not found" };
   }
+
   const now = new Date();
   const lastLogin = user.lastLoginAt;
   const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -251,6 +252,7 @@ const handleLogin = async (userId) => {
   // Check the time since the last login
   if (lastLogin) {
     const timeSinceLastLogin = now - lastLogin;
+
     // Reset streak if the user missed a day
     if (timeSinceLastLogin > ONE_DAY) {
       user.streakCount = 1; // Reset streak to 1
@@ -261,17 +263,25 @@ const handleLogin = async (userId) => {
     user.streakCount = 1; // First login
   }
 
-  // Update rewards based on the streak
-  if (user.streakCount === 7) {
-    // user.rewards += 0.1; // Reward for completing the first streak
-    user.streakCount = 0; // Reset streak after claiming reward
-  } else if (user.streakCount > 7 && user.streakCount % 7 === 0) {
-    // user.rewards += 0.01; // Reward for subsequent streaks
+  // Calculate points earned based on the streak count
+  const pointsEarned = user.streakCount <= 7 ? user.streakCount * 6 : 0; // No points for streaks beyond 7 days
+
+  // Update user rewards
+  user.rewards += pointsEarned;
+
+  // Reset streak after reaching 7 days
+  if (user.streakCount > 7) {
+    user.streakCount = 0; // Reset streak after 7 days
   }
 
-  user.lastLoginAt = now; // Update the last login time
+  user.lastLoginAt = now;
   await user.save();
-  return user; // Return the updated user object
+
+  return {
+    rewards: user.rewards,
+    streakCount: user.streakCount,
+    pointsEarned, // Return points earned as well for frontend use
+  };
 };
 
 // Endpoint to handle user login
