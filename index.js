@@ -160,7 +160,7 @@ app.get("/api/user/:userId", async (req, res) => {
     }
 
     const now = new Date();
-    const claimInterval = 60 * 1000; // 1 minute for testing, change to 8 hours (8 * 60 * 60 * 1000) for production
+    const claimInterval = 4 * 60 * 60 * 1000; // 1 minute for testing, change to 8 hours (8 * 60 * 60 * 1000) for production
     let timeRemaining = 0;
     let canClaim = false;
     let streakCount = user.streakCount;
